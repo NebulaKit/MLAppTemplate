@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Step 1 – Upload{% endblock %}
+{% block content %}
+  <h2>Step 1: Upload Data</h2>
+  <p>Upload your tabular dataset (CSV format).
+    Each row should represent a sample, and each column should represent a feature (including a column for labels).</p>
+
+  <!-- Example upload form -->
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="dataset" accept=".csv" class="form-control mb-3">
+    <button type="submit" class="btn btn-primary">Upload</button>
+  </form>
+  {% if preview_table %}
+    <hr/>
+    <h5 class="mt-4">Preview:</h5>
+    <div class="table-responsive">
+      {{ preview_table | safe }}
+    </div>
+  {% endif %}
+  <!-- Navigation Buttons -->
+  <div class="mt-4 d-flex justify-content-end">
+    <a href="/transform" class="btn btn-outline-success">Next &gt;</a>
+  </div>
+{% endblock %}

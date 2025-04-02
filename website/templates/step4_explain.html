@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Step 4 – Explain Model{% endblock %}
+{% block content %}
+    <h2>Step 4: Explain Model</h2>
+
+    {% if is_multiclass %}
+        <p><strong>Detected task:</strong> Multiclass classification ({{ n_classes }} classes)</p>
+        <p>SHAP summary is currently shown for <strong>class 0</strong>.</p>
+    {% else %}
+        <p><strong>Detected task:</strong> Binary classification</p>
+    {% endif %}
+
+    <div class="text-center mt-4">
+        <img src="data:image/png;base64,{{ shap_plot }}"
+            class="img-fluid mx-auto d-block"
+            style="max-width: 600px;"
+            alt="SHAP Summary Plot">
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="mt-4 d-flex justify-content-between">
+        <a href="/train" class="btn btn-outline-secondary">&lt; Back</a>
+    </div>
+{% endblock %}

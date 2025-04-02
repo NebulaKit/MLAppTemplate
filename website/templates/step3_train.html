@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Step 3 – Train Model{% endblock %}
+{% block content %}
+    <h2>Step 3: Train XGBoost Classifier</h2>
+
+    <h5 class="mt-4">Cross-Validation AUC (5 folds):</h5>
+    <ul>
+        {% for auc in fold_aucs %}
+        <li>Fold {{ loop.index }} AUC: {{ auc }}</li>
+        {% endfor %}
+    </ul>
+
+    <p><strong>Average AUC:</strong> {{ avg_auc }}</p>
+    <p><strong>Standard Error:</strong> {{ stderr }}</p>
+    <p><strong>95% CI:</strong> [{{ ci_low }}, {{ ci_high }}]</p>
+
+    <hr>
+    <h5 class="mt-4">Held-Out Test Set</h5>
+    <p><strong>Test AUC:</strong> {{ test_auc }}</p>
+
+    <hr>
+
+    <!-- Navigation Buttons -->
+    <div class="mt-4 d-flex justify-content-between">
+        <a href="/transform" class="btn btn-outline-secondary">&lt; Back</a>
+        <a href="/explain" class="btn btn-outline-success">Next &gt;</a>
+    </div>
+{% endblock %}

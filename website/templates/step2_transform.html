@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Step 2 – Transform{% endblock %}
+{% block content %}
+  <h2>Step 2: Transform Dataset</h2>
+  <p>Select the column that contains your labels (target values). It will be label-encoded automatically.</p>
+
+  <form action="/transform" method="post">
+    <div class="mb-3">
+      <label for="label_column" class="form-label">Label Column</label>
+      <select class="form-select" name="label_column" id="label_column" required>
+        <option value="" disabled selected>Select column</option>
+        {% for col in columns %}
+          <option value="{{ col }}" {% if col == label_column %}selected{% endif %}>{{ col }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Apply</button>
+  </form>
+
+  {% if transformed_preview %}
+    <hr/>
+    <h5 class="mt-4">Transformed Preview:</h5>
+    <div class="table-responsive">
+      {{ transformed_preview | safe }}
+    </div>
+  {% endif %}
+  <!-- Navigation Buttons -->
+  <div class="mt-4 d-flex justify-content-between">
+    <a href="/upload" class="btn btn-outline-secondary">&lt; Back</a>
+    <a href="/train" class="btn btn-outline-success">Next &gt;</a>
+  </div>
+{% endblock %}
