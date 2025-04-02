@@ -1,4 +1,6 @@
 __pycache__/
 venv/
+uploads/*
 downloads/*
-unloads/*
+!uploads/.gitkeep
+!downloads/.gitkeep
