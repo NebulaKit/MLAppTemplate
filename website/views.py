@@ -22,6 +22,10 @@ ALLOWED_EXTENSIONS = {'csv'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def ensure_dir_exists(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
 @views.route('/')
 def index():
     return redirect('/upload')
@@ -47,7 +51,9 @@ def upload():
             # Save file to uploads
             file.seek(0)
             filename = file.filename
-            file.save(os.path.join('uploads', filename))
+            upload_dir = 'uploads'
+            ensure_dir_exists(upload_dir)
+            file.save(os.path.join(upload_dir, filename))
             session['original_file_name'] = filename
             
             
@@ -93,6 +99,7 @@ def transform():
                 # Save transformed dataset to a new file
                 transformed_name = f"transformed_{original_filename}"
                 transformed_path = os.path.join('uploads', transformed_name)
+                ensure_dir_exists('uploads')
                 df.write_csv(transformed_path)
 
                 # Save to session for future steps
@@ -194,8 +201,8 @@ def train():
     )
 
     # Save the model
-    os.makedirs('downloads', exist_ok=True)
     model_path = os.path.join('downloads', 'final_model.pkl')
+    ensure_dir_exists('downloads')
     joblib.dump(final_model, model_path)
 
     return render_template(
