@@ -193,12 +193,11 @@ def train():
     final_model.fit(X_train, y_train)
     y_test_proba = final_model.predict_proba(X_test)
 
-    test_auc = roc_auc_score(
-        y_test,
-        y_test_proba if is_multiclass else y_test_proba[:, 1],
-        multi_class='ovr' if is_multiclass else None,
-        average='macro' if is_multiclass else 'binary'
-    )
+    # Fixed test AUC logic
+    if is_multiclass:
+        test_auc = roc_auc_score(y_test, y_test_proba, multi_class='ovr', average='macro')
+    else:
+        test_auc = roc_auc_score(y_test, y_test_proba[:, 1])
 
     # Save the model
     model_path = os.path.join('downloads', 'final_model.pkl')
