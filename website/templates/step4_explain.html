@@ -1,20 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Step 4 – Explain Model{% endblock %}
 {% block content %}
-    <h2>Step 4: Explain Model</h2>
+    <h2>Step 4: Explain XGBoost Classifier</h2>
 
     {% if is_multiclass %}
         <p><strong>Detected task:</strong> Multiclass classification ({{ n_classes }} classes)</p>
-        <p>SHAP summary is currently shown for <strong>class 0</strong>.</p>
     {% else %}
         <p><strong>Detected task:</strong> Binary classification</p>
     {% endif %}
 
-    <div class="text-center mt-4">
-        <img src="data:image/png;base64,{{ shap_plot }}"
-            class="img-fluid mx-auto d-block"
-            style="max-width: 600px;"
-            alt="SHAP Summary Plot">
+    <div class="container mt-4">
+        <div class="row">
+            {% for class_name, plot in shap_plots %}
+                <div class="col-lg-4 col-md-6 col-sm-12 mb-4 d-flex flex-column align-items-center">
+                    <h6 class="text-center">{{ class_name }}</h6>
+                    <img src="data:image/png;base64,{{ plot }}" class="img-fluid border rounded shadow-sm" />
+                </div>
+            {% endfor %}
+        </div>
     </div>
 
     <!-- Navigation Buttons -->

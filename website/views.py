@@ -6,6 +6,7 @@ from xgboost import XGBClassifier
 import matplotlib
 matplotlib.use('Agg')  # Headless backend for Flask
 import matplotlib.pyplot as plt
+from pathlib import Path
 from scipy import stats
 import polars as pl
 import numpy as np
@@ -15,9 +16,11 @@ import shap
 import os
 import io
 
+from .utils.data_loader import read_tabular_file
+
 
 views = Blueprint('views', __name__)
-ALLOWED_EXTENSIONS = {'csv'}
+ALLOWED_EXTENSIONS = {'csv', 'tsv'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -32,20 +35,20 @@ def index():
 
 @views.route('/upload', methods=['GET', 'POST'])
 def upload():
+    
     preview_table = None
+    
     if request.method == 'POST':
         file = request.files.get('dataset')
-        # Validate file type
+        
         if not file or not allowed_file(file.filename):
-            flash('Please upload a valid CSV file.', 'danger')
+            flash('Please upload a valid CSV or TSV file.', 'danger')
             return redirect(request.url)
         
         try:
-            # Read CSV using polars
-            df = pl.read_csv(file)
+            df = read_tabular_file(file)
             df_preview = df.head(10)
 
-            # Convert to HTML using Polars DataFrame method
             preview_table = df_preview.to_pandas().to_html(classes="table table-bordered table-sm", index=False)
             
             # Save file to uploads
@@ -81,7 +84,7 @@ def transform():
         return redirect('/upload')
 
     # Read file using Polars
-    df = pl.read_csv(upload_path)
+    df = read_tabular_file(upload_path)
     columns = df.columns
 
     if request.method == 'POST':
@@ -90,24 +93,28 @@ def transform():
             flash("Invalid label column selected.", "danger")
         else:
             try:
-                # Label encode the selected column
-                label_values = df[label_column].to_list()
-                encoder = LabelEncoder()
-                encoded = encoder.fit_transform(label_values)
-                df = df.with_columns(pl.Series(name=label_column, values=encoded))
-
+                from .utils.preprocessing import preprocess_polars_for_ml, label_encode_polars_categoricals
+                
+                df_clean = preprocess_polars_for_ml(df)
+                df_encoded, encoders = label_encode_polars_categoricals(df_clean)
+                
                 # Save transformed dataset to a new file
-                transformed_name = f"transformed_{original_filename}"
+                transformed_name = f"transformed_{Path(original_filename).stem}.csv"
                 transformed_path = os.path.join('uploads', transformed_name)
                 ensure_dir_exists('uploads')
-                df.write_csv(transformed_path)
+                df_encoded.write_csv(transformed_path)
+                
+                # Serialize and save encoders to a file
+                encoder_path = os.path.join('uploads', f'encoders_{Path(original_filename).stem}.pkl')
+                joblib.dump(encoders, encoder_path)
 
                 # Save to session for future steps
                 session['transformed_file_name'] = transformed_name
                 session['label_column'] = label_column
+                session['encoder_path'] = encoder_path
 
                 # Show preview
-                transformed_preview = df.head(10).to_pandas().to_html(
+                transformed_preview = df_encoded.head(10).to_pandas().to_html(
                     classes="table table-bordered table-sm", index=False
                 )
 
@@ -126,7 +133,7 @@ def transform():
 def train():
     transformed_filename = session.get('transformed_file_name')
     label_column = session.get('label_column')
-
+        
     if not transformed_filename or not label_column:
         flash("Missing data. Please complete the transform step first.", "danger")
         return redirect('/transform')
@@ -137,7 +144,7 @@ def train():
         return redirect('/transform')
 
     # Load transformed dataset
-    df = pl.read_csv(file_path)
+    df = read_tabular_file(file_path)
     if label_column not in df.columns:
         flash("Label column not found in dataset.", "danger")
         return redirect('/transform')
@@ -223,14 +230,21 @@ def explain():
     model_path = os.path.join('downloads', 'final_model.pkl')
     transformed_file = session.get('transformed_file_name')
     label_column = session.get('label_column')
+    encoder_path = session.get('encoder_path')
 
     if not os.path.exists(model_path) or not transformed_file or not label_column:
         flash("Missing data or model. Please complete previous steps.", "danger")
         return redirect('/train')
+    
+    if not encoder_path or not os.path.exists(encoder_path):
+        flash("Encoders not found.", "danger")
+        return redirect('/transform')
+
+    encoders = joblib.load(encoder_path)
 
     # Load model and transformed dataset
     model = joblib.load(model_path)
-    df = pl.read_csv(os.path.join('uploads', transformed_file))
+    df = read_tabular_file(os.path.join('uploads', transformed_file))
     X_df = df.drop(label_column)
     X = X_df.to_numpy()
     y = df[label_column].to_numpy()
@@ -238,28 +252,54 @@ def explain():
 
     n_classes = len(np.unique(y))
     is_multiclass = n_classes > 2
+    decoded_labels = np.unique(y)
+    
+    # If label was encoded
+    if label_column in encoders:
+        # Get encoder for the label column
+        le = encoders[label_column]
+        encoded_classes = np.arange(len(le.classes_))
+        decoded_labels = le.inverse_transform(encoded_classes).tolist()
 
     # SHAP explainer
     explainer = shap.Explainer(model)
     shap_values = explainer(X)
 
-    # Choose SHAP array
-    shap_array = shap_values[:, :, 0] if is_multiclass else shap_values.values
+    shap_plots = []
 
-    # Plot using NumPy arrays
-    img_bytes = io.BytesIO()
-    plt.figure()
-    shap.summary_plot(shap_array, X, feature_names=feature_names, show=False)
-    plt.tight_layout()
-    plt.savefig(img_bytes, format='png')
-    plt.close()
-    img_bytes.seek(0)
-    plot_base64 = base64.b64encode(img_bytes.read()).decode('utf-8')
+    if is_multiclass:
+        for i, class_name in enumerate(decoded_labels):
+            img_bytes = io.BytesIO()
+            plt.figure()
+            shap.summary_plot(
+                shap_values[:, :, i],
+                X,
+                feature_names=feature_names,
+                show=False
+            )
+            plt.title(f"SHAP Summary Plot for Class: {class_name}", pad=20)
+            plt.tight_layout()
+            plt.savefig(img_bytes, format='png')
+            plt.close()
+            img_bytes.seek(0)
+            plot_base64 = base64.b64encode(img_bytes.read()).decode('utf-8')
+            shap_plots.append((class_name, plot_base64))
+    else:
+        img_bytes = io.BytesIO()
+        plt.figure()
+        shap.summary_plot(shap_values.values, X, feature_names=feature_names, show=False)
+        plt.title("SHAP Summary Plot", pad=20)
+        plt.tight_layout()
+        plt.savefig(img_bytes, format='png')
+        plt.close()
+        img_bytes.seek(0)
+        plot_base64 = base64.b64encode(img_bytes.read()).decode('utf-8')
+        shap_plots.append(("Binary", plot_base64))
 
     return render_template(
         'step4_explain.html',
         step=4,
-        shap_plot=plot_base64,
+        shap_plots=shap_plots,  # list of (label, image) pairs
         is_multiclass=is_multiclass,
         n_classes=n_classes
     )

@@ -7,7 +7,7 @@
 
   <!-- Example upload form -->
   <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="dataset" accept=".csv" class="form-control mb-3">
+    <input type="file" name="dataset" accept=".csv,.tsv,text/csv,text/tab-separated-values" class="form-control mb-3">
     <button type="submit" class="btn btn-primary">Upload</button>
   </form>
   {% if preview_table %}

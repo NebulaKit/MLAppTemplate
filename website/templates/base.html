@@ -4,11 +4,22 @@
   <meta charset="UTF-8">
   <title>{% block title %}templateMLApp{% endblock %}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom Styles -->
+  <style>
+    .navbar-custom {
+      background-color: #2c3e50;
+    }
+    .footer-custom {
+      background-color: #2c3e50;
+    }
+  </style>
 </head>
 <body>
-  <nav class="navbar navbar-dark bg-dark">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
     <div class="container-fluid">
-      <span class="navbar-brand">templateMLApp</span>
+      <a class="navbar-brand" href="{{ url_for('views.upload') }}">templateMLApp</a>
     </div>
   </nav>
 
@@ -23,9 +34,30 @@
     </div>
   </div>
 
+  <!-- Flash Messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="container mt-3">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
   <!-- Step Content -->
-  <div class="container mt-5">
+  <div class="container mt-5 mb-5">
     {% block content %}{% endblock %}
   </div>
+
+  <!-- Footer -->
+  <footer class="text-light text-center py-3 mt-auto footer-custom">
+    <div class="container">
+      <small>&copy; 2025 templateMLApp — Built with Flask + scikit-learn + XGBoost</small>
+    </div>
+  </footer>
 </body>
 </html>
